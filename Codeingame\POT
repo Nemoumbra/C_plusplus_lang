@@ -1,0 +1,78 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+/**
+ * Auto-generated code below aims at helping you parse
+ * the standard input according to the problem statement.
+ * ---
+ * Hint: You can use the debug stream to print initialTX and initialTY, if Thor seems not follow your orders.
+ **/
+
+int main()
+{
+    int lightX; // the X position of the light of power
+    int lightY; // the Y position of the light of power
+    int initialTX; // Thor's starting X position
+    int initialTY; // Thor's starting Y position
+    cin >> lightX >> lightY >> initialTX >> initialTY; cin.ignore();
+    int deltax = initialTX-lightX; //Number of times Thor moves left or right
+    int deltay = initialTY-lightY; //Number of times Thor moves up or down
+    int ThorX = initialTX; //Thor's current x-coordinate
+    int ThorY = initialTY; //Thor's current y-coordinate
+    // game loop
+    for (int i=0; i<min(abs(deltax), abs(deltay)); i++) {
+            if (deltax > 0) { //Thor is positioned righter
+                ThorX--;
+                if (deltay > 0) {
+                    cout<<"NW"<<endl; //Thor is positioned below
+                    ThorY--;
+                }
+                else if (deltay <0) {  
+                    cout<<"SW"<<endl; //Thor is positioned above
+                    ThorY++;
+                }
+            }
+            else if (deltax < 0) { //Thor is positioned lefter
+                ThorX++; 
+                if (deltay > 0) {
+                    cout<<"NE"<<endl; //Thor is positioned below
+                    ThorY--;
+                }
+                else if (deltax < 0) {
+                    cout<<"SE"<<endl; //Thor is positioned above
+                    ThorY++;
+                }
+            }
+            
+        }    
+    while (1) {
+        int remainingTurns; // The remaining amount of turns Thor can move. Do not remove this line.
+        cin >> remainingTurns; cin.ignore();
+        if (ThorX > lightX) {
+            cout<<"W"<<endl;
+            ThorX--;
+        }
+        if (ThorX < lightX) {
+            cout<<"E"<<endl;
+            ThorX++;
+        }
+        if (ThorY > lightY) {
+            cout<<"N"<<endl;
+            ThorY--;
+        }
+        if (ThorY < lightY) {
+            cout<<"S"<<endl;
+            ThorY++;
+        }
+        // Write an action using cout. DON'T FORGET THE "<< endl"
+        // To debug: cerr << "Debug messages..." << endl;
+
+
+        // A single line providing the move to be made: N NE E SE S SW W or NW
+        
+    }
+}
