@@ -51,18 +51,18 @@ public:
 };
 
 void reverse(vector_wrapper& arr) {
-	for (unsigned int i = 0; i < arr.size; ++i) {
+	for (unsigned int i = 0; i < arr.size / 2; ++i) {
 		std::swap(arr[i], arr[arr.size - 1 - i]);
 	}
 }
 
 class BigInteger {
 private:
-	#ifdef VS_10
+#ifdef VS_10
 	int base;
-	#else
+#else
 	int base = 10;
-	#endif
+#endif
 
 	bool negative;
 	bool zero;
@@ -220,6 +220,10 @@ private:
 		bint.multiply_by_base_power(N);
 		return bint;
 	}
+	/*void multiply_by_digit_with_shift_by(int digit, int N) {
+		multiply_by_digit(digit);
+		multiply_by_base_power(N);
+	}*/
 	void checkless_multiply_by_number(const BigInteger& bint) {
 		//only called from *= for (const int&)s
 		BigInteger res;
@@ -238,19 +242,56 @@ private:
 		}
 		BigInteger res;
 		for (int i = 0; i < N; ++i) {
-			res.digits[N-1-i] = digits[digits.size - 1 - i];
+			res.digits[N - 1 - i] = digits[digits.size - 1 - i];
 		}
 		res.digits.size = N;
 		res.zero = false;
 		return res;
 	}
 
+	void add_one_digit_to_the_end(int N) {
+		int size = digits.size;
+		for (int i = 0; i < size; ++i) {
+			digits[size - i] = const_cast <const vector_wrapper&>(digits)[size - 1 - i];
+		}
+		digits[0] = N;
+	}
+
+	void add_n_digits_from_mth_of(const BigInteger& bint, int n, int m) {
+		//Theta(new length of number)
+		if (n <= 0) {
+			return;
+		}
+		/*if (n > bint.digits.size - m) {
+			n = bint.digits.size - m;
+		}*/
+
+		// m is 0 if you want to copy from the "bint.digits.size - 1" index
+		int size = digits.size;
+		//there's a chance that n might be too big, thus we'll have to adjust it
+		for (int i = 0; i < size; ++i) {
+			digits[size - 1 - i + n] = const_cast <const vector_wrapper&>(digits)[size - 1 - i];
+		}
+		// 1 2 3 4 5; 2, 2
+		// bint.digits = (5, 4, 3, 2, 1); *this.digits= (2, 2) => (k1 = ?, k2 = ?, 2, 2)
+		//"bint.digits.size - 1 - m" is the last index we need to get in [] => the 1st one should be "bint.digits.size - 1 - m - n"
+		//now m = 1. 
+
+		//if m 
+		for (int i = 0; i < n; ++i) {
+			digits[i] = bint.digits[bint.digits.size - m - n + i];
+		}
+	}
+
 public:
+	void assign_zero() {
+		nullify();
+	}
 	BigInteger(int N = 0) {
 		//digits.push_back(N); if base is bigger than any int
-		#ifdef VS_10
+#ifdef VS_10
 		base = 10;
-		#endif 
+#endif 
 		if (N < 0) {
 			negative = true;
 			zero = false;
@@ -270,7 +311,7 @@ public:
 			digits.push_back(N % base);
 			N /= base;
 		}
-		reverse(digits);
+		//reverse(digits);
 	}
 
 	BigInteger(const BigInteger& bint) {
@@ -279,6 +320,13 @@ public:
 		base = bint.base;
 		digits = bint.digits;
 	}
+
+	BigInteger(vector_wrapper& vec) {
+		digits = vec;
+		zero = false;
+		negative = false;
+	}
+
 	BigInteger& operator=(const BigInteger& bint) {
 		if (this == &bint) {
 			return *this;
@@ -570,7 +618,7 @@ public:
 		}
 		return *this;
 	}
-	
+
 	BigInteger& operator*=(const BigInteger& bint) {
 		if (zero) {
 			return *this;
@@ -605,7 +653,7 @@ public:
 		}
 		return *this *= BigInteger(N);
 	}
-	
+
 	//BigInteger& operator/=(const BigInteger& bint) {
 	//	if (zero || bint.zero) {
 	//		return *this;
@@ -653,13 +701,260 @@ public:
 	//	}
 	//	return *this;
 	//}
-	/*
-	BigInteger& operator%=(const BigInteger& bint) {
-
+	BigInteger& operator/=(const BigInteger& bint) {
+		if (zero || bint.zero) {
+			return *this;
+		}
+		if (digits.size < bint.digits.size) {
+			nullify();
+			return *this;
+		}
+		// now *this has at least as many digits as bint
+		// 12345 / 222
+		BigInteger temp;
+		vector_wrapper vec;
+		int l, r;
+		BigInteger subtrahend;
+		int m;
+		int k = 0;
+		int size;
+		bool added_digits;
+		bool first = true;
+		while (k < digits.size) {
+			if (k) {
+				first = false;
+			}
+			added_digits = false;
+			if (!temp.digits.size && digits[digits.size - 1 - k] == 0) {
+				k++;
+				vec.push_back(0);
+				//temp.add_one_digit_to_the_end(0);
+				continue;
+			}
+			if (bint.digits.size - temp.digits.size > digits.size - k) {
+				temp.add_n_digits_from_mth_of(*this, digits.size - k, k);
+				for (int i = 0; i < digits.size - k - 1; ++i) { //only if >= 2 digits were added
+					vec.push_back(0);
+				}
+				k = digits.size;
+				added_digits = true;
+			}
+			else {
+				size = bint.digits.size - temp.digits.size;
+				if (added_digits) {
+					for (int i = 0; i < size - 1; ++i) {
+						vec.push_back(0);
+					}
+				}
+				temp.add_n_digits_from_mth_of(*this, size, k);
+				if (!first && size) {
+					added_digits = true;
+				}
+				k += size;
+			}
+			temp.zero = false;
+			if (bint.compare_by_abs(temp) > 0) {
+				//need next prefix
+				if (digits.size == k) {
+					//there isn't a bigger one
+					if (!vec.size) {
+						nullify();
+					}
+					else {
+						vec.push_back(0);
+						(*this).digits = vec;
+						if (bint.negative) {
+							negative = !negative;
+						}
+					}
+					reverse(digits);
+					return *this;
+				}
+				//make temp equal to the next prefix
+				temp.add_one_digit_to_the_end(digits[digits.size - 1 - k]);
+				if (added_digits) {
+					vec.push_back(0);
+				}
+				added_digits = true;
+				k++;
+			}
+			l = 0, r = base;
+			//now temp is what we have to substract from
+			//what do we substract?
+			//*this = 12345, bint = 222, temp =	1234
+			while (r - l > 1) {
+				m = (r + l) / 2;
+				subtrahend = bint;
+				subtrahend.multiply_by_digit(m);
+				if (temp.digits.size < subtrahend.digits.size) {
+					// subtrahend is too big
+					// m doesn't fit
+					r = m;
+				}
+				else {
+					if (temp.compare_by_abs(subtrahend) >= 0) {
+						// m fits
+						l = m;
+					}
+					else {
+						r = m;
+					}
+				}
+			}
+			// now l == digit_that_fits
+			subtrahend = bint;
+			subtrahend.multiply_by_digit(l);
+			temp.carry_substr(subtrahend);
+			vec.push_back(l);
+		}
+		//if we're here, result is not 0.
+		(*this).digits = vec;
+		if (bint.negative) {
+			negative = !negative;
+		}
+		reverse(digits);
+		return *this;
 	}
-	*/
+	
+	BigInteger& operator%=(const BigInteger& bint) {
+		if (zero || bint.zero) {
+			return *this;
+		}
+		if (digits.size < bint.digits.size) {
+			//negative = bint.negative;
+			return *this;
+		}
+		// now *this has at least as many digits as bint
+		BigInteger temp;
+		/*
+		vector_wrapper vec;
+		*/
+		int l, r;
+		BigInteger subtrahend;
+		int m;
+		int k = 0;
+		int size;
+		bool first = true;
+		while (k < digits.size) {
+			//if (k) {
+			//	first = false;
+			//}
+			/*
+			added_digits = false;
+			*/
+			if (!temp.digits.size && digits[digits.size - 1 - k] == 0) {
+				k++;
+				/*
+				vec.push_back(0);
+				*/
+				continue;
+			}
+			if (bint.digits.size - temp.digits.size > digits.size - k) {
+				temp.add_n_digits_from_mth_of(*this, digits.size - k, k);
+				/*
+				for (int i = 0; i < digits.size - k; ++i) {
+					vec.push_back(0);
+				}
+				*/
+				k = digits.size;
+				/*
+				added_digits = true;
+				*/
+			}
+			else {
+				size = bint.digits.size - temp.digits.size;
+				/*
+				if (added_digits) {
+					for (int i = 0; i < size - 1; ++i) {
+						vec.push_back(0);
+					}
+				}
+				*/
+				temp.add_n_digits_from_mth_of(*this, size, k);
+				/*
+				if (!first && size) {
+					added_digits = true;
+				}
+				*/
+				k += size;
+			}
+			temp.zero = false;
+			if (bint.compare_by_abs(temp) > 0) {
+				//need next prefix
+				if (digits.size == k) {
+					if (!temp.digits.size) {
+						//is divisible
+						nullify();
+					}
+					else {
+						temp.negative = negative;
+						*this = temp;
+						//negative = bint.negative;
+					}
+					return *this;
+				}
+				//make temp equal to the next prefix
+				temp.add_one_digit_to_the_end(digits[digits.size - 1 - k]);
+				/*
+				if (added_digits) {
+					vec.push_back(0);
+				}
+				*/
+				//added_digits = true;
+				k++;
+			}
+			l = 0, r = base;
+			//now temp is what we have to substract from
+			//what do we substract?
+			//*this = 12345, bint = 222, temp =	1234
+			while (r - l > 1) {
+				m = (r + l) / 2;
+				subtrahend = bint;
+				subtrahend.multiply_by_digit(m);
+				if (temp.digits.size < subtrahend.digits.size) {
+					// subtrahend is too big
+					// m doesn't fit
+					r = m;
+				}
+				else {
+					if (temp.compare_by_abs(subtrahend) >= 0) {
+						// m fits
+						l = m;
+					}
+					else {
+						r = m;
+					}
+				}
+			}
+			// now l == digit_that_fits
+			subtrahend = bint;
+			subtrahend.multiply_by_digit(l);
+			temp.carry_substr(subtrahend);
+			/*
+			vec.push_back(l);
+			*/
+		}
+		if (!temp.digits.size) {
+			//is divisible
+			nullify();
+		}
+		else {
+			temp.negative = negative;
+			*this = temp;
+		}
+		return *this;
+	}
 
-	std::string toString() const{
+	BigInteger operator-() const {
+		if (zero) {
+			return *this;
+		}
+		BigInteger temp(*this);
+		temp.negative = !temp.negative;
+		return temp;
+	}
+	
+	std::string toString() const {
 		std::string str;
 		if (zero) {
 			return "0";
@@ -667,10 +962,14 @@ public:
 		if (negative) {
 			str += "-";
 		}
-		for (int i = digits.size - 1; i >= 0 ; --i) {
+		for (int i = digits.size - 1; i >= 0; --i) {
 			str += std::to_string(digits[i]);
 		}
 		return str;
+	}
+
+	explicit operator bool() {
+		return !zero;
 	}
 	//~BigInteger() {
 	//	digits.~vector();
@@ -695,16 +994,33 @@ BigInteger operator*(const BigInteger& bint1, const BigInteger& bint2) {
 	return temp;
 }
 
-//BigInteger operator/(const BigInteger& bint1, const BigInteger& bint2) {
-//
-//}
-//BigInteger operator%(const BigInteger& bint1, const BigInteger& bint2) {
-//
-//}
-//
-//std::istream& operator>>(std::istream stream, BigInteger bint) {
-//
-//}
+BigInteger operator/(const BigInteger& bint1, const BigInteger& bint2) {
+	BigInteger temp(bint1);
+	temp /= bint2;
+	return temp;
+}
+
+BigInteger operator%(const BigInteger& bint1, const BigInteger& bint2) {
+	BigInteger temp(bint1);
+	temp %= bint2;
+	return temp;
+}
+
+std::istream& operator>>(std::istream& stream, BigInteger& bint) {
+	std::string str;
+	stream >> str;
+	bint.assign_zero();
+	if (str[0] == '0') {
+		return stream;
+	}
+	int i = 0;
+	if (str[0] == '-') {
+		++i;
+	}
+	for (; i < str.size(); ++i) {
+		//
+	}
+}
 std::ostream& operator<<(std::ostream& stream, const BigInteger& bint) {
 	return stream << bint.toString();
 }
