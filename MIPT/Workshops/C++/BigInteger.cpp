@@ -57,11 +57,12 @@ void reverse(vector_wrapper& arr) {
 }
 
 class BigInteger {
+	friend class Rational;
 private:
 #ifdef VS_10
 	int base;
 #else
-	int base = 10;
+	long long int base = 1000000000;
 #endif
 
 	bool negative;
@@ -188,7 +189,7 @@ private:
 			return;
 		}
 		long long int addendum;
-		int carry = 0;
+		long long int carry = 0;
 		for (int i = 0; (i < digits.size) || carry; ++i) {
 			addendum = digits[i] * N + carry;
 			carry = addendum / base;
@@ -284,13 +285,10 @@ private:
 	}
 
 public:
-	void assign_zero() {
-		nullify();
-	}
-	BigInteger(int N = 0) {
+	BigInteger(long long int N = 0) {
 		//digits.push_back(N); if base is bigger than any int
 #ifdef VS_10
-		base = 10;
+		base = 1000000000;
 #endif 
 		if (N < 0) {
 			negative = true;
@@ -335,10 +333,14 @@ public:
 		negative = bint.negative;
 		base = bint.base;
 		digits = bint.digits;
+		return *this;
 	}
 
 	bool operator==(const BigInteger& bint) const {
-		if ((negative != bint.negative) || (zero != bint.zero) || (digits.size - bint.digits.size)) {
+		if ((zero == true) && (bint.zero == true)) {
+			return true;
+		}
+		if ((zero != bint.zero) || (negative != bint.negative) || (digits.size - bint.digits.size)) {
 			return false;
 		}
 		for (int i = 0; i < digits.size; ++i) {
@@ -713,7 +715,7 @@ public:
 		// 12345 / 222
 		BigInteger temp;
 		vector_wrapper vec;
-		int l, r;
+		long long int l, r;
 		BigInteger subtrahend;
 		int m;
 		int k = 0;
@@ -834,7 +836,6 @@ public:
 		int m;
 		int k = 0;
 		int size;
-		bool first = true;
 		while (k < digits.size) {
 			//if (k) {
 			//	first = false;
@@ -962,18 +963,72 @@ public:
 		if (negative) {
 			str += "-";
 		}
-		for (int i = digits.size - 1; i >= 0; --i) {
-			str += std::to_string(digits[i]);
+
+		unsigned int base_digits_count = 0;
+		long long int N = base;
+		while (N) {
+			++base_digits_count;
+			N /= 10;
+		}
+
+		std::string digit;
+		digit = std::to_string(digits[digits.size - 1]);
+		str += digit;
+		for (int i = digits.size - 2; i >= 0; --i) {
+			digit = std::to_string(digits[i]);
+			if (digit.length() < base_digits_count - 1) {
+				digit = std::string(base_digits_count - 1 - digit.length(), '0') + digit;
+			}
+			str += digit;
 		}
 		return str;
 	}
-
-	explicit operator bool() {
+	#ifndef VS_10
+	explicit
+	#endif 
+	operator bool() const {
 		return !zero;
+	}
+
+	friend std::istream& operator>>(std::istream& stream, BigInteger& bint) {
+		std::string str;
+		stream >> str;
+		bint.nullify();
+		if (str[0] == '0') {
+			return stream;
+		}
+		bint.zero = false;
+
+		if (str[0] == '-') {
+			str.erase(0, 1);
+			bint.negative = true;
+		}
+
+		unsigned int base_digits_count = 0;
+		long long int base = bint.base;
+		while (base) {
+			++base_digits_count;
+			base /= 10;
+		}
+		//now base_digits_count is how many symbols we grab from str to form a digit.
+		if (str.length() % (base_digits_count - 1) != 0) {
+			str = std::string(base_digits_count - 1 - (str.length() % (base_digits_count - 1)), '0') + str;
+		}
+		int i = str.length() - base_digits_count + 1; //pointer in the string
+
+		long long int digit;
+		for (; i >= 0; i -= (base_digits_count - 1)) {
+			digit = std::stoll(str.substr(i, base_digits_count - 1));
+			bint.digits.push_back(digit);
+		}
+		//reverse(bint.digits);
+		return stream;
 	}
 	//~BigInteger() {
 	//	digits.~vector();
 	//}
+	friend BigInteger GCD(const BigInteger& bint1, const BigInteger& bint2);
+	friend BigInteger abs(const BigInteger& bint);
 };
 
 BigInteger operator+(const BigInteger& bint1, const BigInteger& bint2) {
@@ -1006,21 +1061,202 @@ BigInteger operator%(const BigInteger& bint1, const BigInteger& bint2) {
 	return temp;
 }
 
-std::istream& operator>>(std::istream& stream, BigInteger& bint) {
-	std::string str;
-	stream >> str;
-	bint.assign_zero();
-	if (str[0] == '0') {
-		return stream;
-	}
-	int i = 0;
-	if (str[0] == '-') {
-		++i;
-	}
-	for (; i < str.size(); ++i) {
-		//
-	}
-}
 std::ostream& operator<<(std::ostream& stream, const BigInteger& bint) {
 	return stream << bint.toString();
+}
+
+BigInteger abs(const BigInteger& bint) {
+	if (!bint.negative) {
+		return bint;
+	}
+	return -bint;
+}
+
+BigInteger GCD(const BigInteger& bint1, const BigInteger& bint2) {
+	//not supposed to be called when bint2 == 0, y'see
+	if (bint1.zero) {
+		return abs(bint2);
+	}
+	//now the bint1 is either positive or negative and bint2 is just positive
+	BigInteger a, b;
+	if (bint1.compare_by_abs(bint2) >= 0) {
+		a = bint1;
+		b = bint2;
+		a.negative = false;
+	}
+	else {
+		b = bint1;
+		a = bint2;
+		b.negative = false;
+	}
+	// (a, b) -> (b, a%b)
+	BigInteger t;
+	while (b != 0) {
+		t = a;
+		a = b;
+		b = t % b;
+	}
+	return a;
+}
+
+
+class Rational {
+private:
+	BigInteger numerator;
+	BigInteger denominator;
+public:
+	Rational(int r = 0) {
+		numerator = r;
+		denominator = 1;
+	}
+	Rational(const BigInteger& bint) {
+		numerator = bint;
+		denominator = 1;
+	}
+	Rational(const Rational& rat) {
+		numerator = rat.numerator;
+		denominator = rat.denominator;
+	}
+
+	Rational operator=(const Rational& rat) {
+		numerator = rat.numerator;
+		denominator = rat.denominator;
+		return *this;
+	}
+
+	bool operator==(const Rational& rat) const {
+		return (denominator == rat.denominator) && (numerator == rat.numerator);
+	}
+
+	bool operator!=(const Rational& rat) const {
+		return !((denominator == rat.denominator) && (numerator == rat.numerator));
+	}
+
+	bool operator>(const Rational& rat) const {
+		if (!numerator.negative && rat.numerator.negative) {
+			return true;
+		}
+		if (!rat.numerator.negative && (numerator.negative || numerator.zero)) {
+			return false;
+		}
+		return (numerator * rat.denominator) > (denominator * rat.numerator);
+	}
+
+	bool operator<(const Rational& rat) const {
+		return rat > (*this);
+	}
+
+	bool operator<=(const Rational& rat) const {
+		return !((*this) > rat);
+	}
+
+	bool operator>=(const Rational& rat) const {
+		return !(rat > *this);
+	}
+
+
+	Rational& operator+=(const Rational& rat) {
+		if (rat.numerator.zero) {
+			return *this;
+		}
+		(numerator *= rat.denominator) += (rat.numerator * denominator);
+		denominator *= rat.denominator;
+		BigInteger gcd = GCD(numerator, denominator);
+		numerator /= gcd;
+		denominator /= gcd;
+		return *this;
+	}
+
+	Rational& operator-=(const Rational& rat) {
+		if (rat.numerator.zero) {
+			return *this;
+		}
+		(numerator *= rat.denominator) -= (rat.numerator * denominator);
+		denominator *= rat.denominator;
+		BigInteger gcd = GCD(numerator, denominator);
+		numerator /= gcd;
+		denominator /= gcd;
+		return *this;
+	}
+
+	Rational& operator*=(const Rational& rat) {
+		//first variant
+		numerator *= rat.numerator;
+		denominator *= rat.denominator;
+		BigInteger gcd = GCD(numerator, denominator);
+		numerator /= gcd;
+		denominator /= gcd;
+		//second variant incoming
+		return *this;
+	}
+
+	Rational& operator/=(const Rational& rat) {
+		if (numerator.zero) {
+			return *this;
+		}
+		numerator *= rat.denominator;
+		denominator *= rat.numerator;
+		if (numerator.negative == denominator.negative) {
+			numerator.negative = false;
+			denominator.negative = false;
+		}
+		else {
+			numerator.negative = true;
+			denominator.negative = false;
+		}
+		BigInteger gcd = GCD(numerator, denominator);
+		numerator /= gcd;
+		denominator /= gcd;
+		return *this;
+	}
+
+	Rational operator-() const {
+		if (numerator.zero) {
+			return *this;
+		}
+		Rational temp(*this);
+		temp.numerator.negative = !temp.numerator.negative;
+		return temp;
+	}
+	std::string toString() const {
+		if (numerator.zero) {
+			return "0";
+		}
+		std::string str;
+		str += numerator.toString();
+		if (denominator != 1) {
+			(str += "/") += denominator.toString();
+		}
+		return str;
+	}
+	std::string asDecimal(size_t precision = 0) const {
+		return std::to_string(precision);
+	}
+	#ifndef VS_10
+	explicit 
+	#endif
+	operator double() const {
+		return 0;
+	}
+};
+
+Rational operator+(const Rational& rat1, const Rational& rat2) {
+	Rational temp(rat1);
+	temp += rat2;
+	return temp;
+}
+Rational operator-(const Rational& rat1, const Rational& rat2) {
+	Rational temp(rat1);
+	temp -= rat2;
+	return temp;
+}
+Rational operator*(const Rational& rat1, const Rational& rat2) {
+	Rational temp(rat1);
+	temp *= rat2;
+	return temp;
+}
+Rational operator/(const Rational& rat1, const Rational& rat2) {
+	Rational temp(rat1);
+	temp /= rat2;
+	return temp;
 }
