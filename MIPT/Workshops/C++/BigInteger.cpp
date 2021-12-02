@@ -49,6 +49,11 @@ public:
 		vector = vec.vector;
 		size = vec.size;
 	}
+	void reverse() {
+		for (unsigned int i = 0; i < size / 2; ++i) {
+			std::swap((*this)[i], (*this)[size - 1 - i]);
+		}
+	}
 };
 
 void reverse(vector_wrapper& arr) {
@@ -342,7 +347,6 @@ public:
 			digits.push_back(N % base);
 			N /= base;
 		}
-		//reverse(digits);
 	}
 
 	BigInteger(const BigInteger& bint) {
@@ -802,7 +806,7 @@ public:
 							negative = !negative;
 						}
 					}
-					reverse(digits);
+					digits.reverse();
 					return *this;
 				}
 				//make temp equal to the next prefix
@@ -847,10 +851,10 @@ public:
 		if (bint.negative) {
 			negative = !negative;
 		}
-		reverse(digits);
+		digits.reverse();
 		return *this;
 	}
-	
+
 	BigInteger& operator%=(const BigInteger& bint) {
 		if (zero || bint.zero) {
 			return *this;
@@ -987,7 +991,7 @@ public:
 		temp.negative = !temp.negative;
 		return temp;
 	}
-	
+
 	std::string toString() const {
 		std::string str;
 		if (zero) {
@@ -1016,14 +1020,14 @@ public:
 		}
 		return str;
 	}
-	#ifndef VS_10
+#ifndef VS_10
 	explicit
-	#endif 
-	/*operator bool() const {
-		return !zero;
-	}*/
+#endif 
+		operator bool() const {
+			return !zero;
+		}
 
-	friend std::istream& operator>>(std::istream& stream, BigInteger& bint) {
+		friend std::istream& operator>>(std::istream& stream, BigInteger& bint) {
 		std::string str;
 		stream >> str;
 		bint.nullify();
@@ -1054,7 +1058,6 @@ public:
 			digit = std::stoll(str.substr(i, base_digits_count - 1));
 			bint.digits.push_back(digit);
 		}
-		//reverse(bint.digits);
 		return stream;
 	}
 	//~BigInteger() {
@@ -1156,13 +1159,13 @@ public:
 		denominator = rat.denominator;
 	}
 	Rational(int p, int q) {
-		std::cerr << "Why the heck is this thing called!?\n";
+		std::cerr << p << " " << q << " Why the heck is this thing called!?\n";
 	}
 	Rational(const BigInteger& p, const BigInteger& q) {
-		std::cerr << "Why the heck is this thing called!?\n";	
+		std::cerr << p << " " << q << " Why the heck is this thing called!?\n";
 	}
 
-	Rational operator=(const Rational& rat) {
+	Rational& operator=(const Rational& rat) {
 		if (this == &rat) {
 			return *this;
 		}
@@ -1172,11 +1175,11 @@ public:
 	}
 
 	bool operator==(const Rational& rat) const {
-		return (denominator == rat.denominator) && (numerator == rat.numerator);
+		return (numerator == rat.numerator) && (denominator == rat.denominator);
 	}
 
 	bool operator!=(const Rational& rat) const {
-		return !((denominator == rat.denominator) && (numerator == rat.numerator));
+		return !((numerator == rat.numerator) && (denominator == rat.denominator));
 	}
 
 	bool operator>(const Rational& rat) const {
@@ -1272,7 +1275,6 @@ public:
 		return str;
 	}
 	std::string asDecimal(size_t precision = 0) const {
-		//quite uneffective yet working
 		if (numerator.zero) {
 			return "0." + std::string(precision, '0');
 		}
@@ -1282,34 +1284,47 @@ public:
 		BigInteger num(numerator);
 		BigInteger den(denominator);
 		std::string str;
-		(str += (num / den).toString()) += ".";
-		num.negative = false;
+		bool was_negative = false;;
+		if (num.negative) {
+			num.negative = false;
+			was_negative = true;
+		}
+		str += (num / den).toString();
 		num %= den;
 		if (precision) {
+			str += ".";
 			unsigned int base_digits_count = 0;
 			long long int base = num.base;
 			while (base) {
 				++base_digits_count;
 				base /= 10;
 			}
-			num.multiply_by_base_power(precision / (base_digits_count - 1) + ((precision % (base_digits_count - 1)) ? 1 : 0));
+			int needed_base_power = precision / (base_digits_count - 1) + ((precision % (base_digits_count - 1)) ? 1 : 0); //that's how ceiling works
+			num.multiply_by_base_power(needed_base_power);
 			num /= den;
-			str += (num.toString()).substr(0, precision);
+			std::string num_digits = num.toString();
+			str += (std::string((base_digits_count - 1) * needed_base_power - num_digits.length(), '0') + num_digits).substr(0, precision);
+		}
+		if (was_negative && str.find_first_not_of("0.") != std::string::npos) {
+			str = "-" + str;
 		}
 		return str;
 	}
+
 	#ifndef VS_10
-	explicit 
+	explicit operator double() const {
+		throw std::runtime_error("operator double");
+		//wait for it...
+		std::string str = asDecimal(309); //where 309 is the maximum number of digits for a double (IT'S NOT USED ELSEWHERE!)
+		return 0;
+	}
 	#endif
-	//operator double() const {
-	//	return 0;
-	//}
 	friend std::istream& operator>>(std::istream& stream, Rational& rat) {
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wtype-limits"
 		std::string str;
 		stream >> str;
-		unsigned int index = str.find('/');
+		unsigned long long int index = str.find('/');
 		if (index == str.npos) {
 			std::stringstream s;
 			s << str;
