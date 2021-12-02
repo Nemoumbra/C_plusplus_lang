@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <sstream>
 #endif
 
 class vector_wrapper {
@@ -220,6 +221,38 @@ private:
 		bint.multiply_by_digit(digit);
 		bint.multiply_by_base_power(N);
 		return bint;
+		//if (digit == 0) {
+		//	nullify();
+		//	return;
+		//}
+		//long long int addendum;
+		//long long int carry = 0;
+		//for (int i = 0; (i < digits.size) || carry; ++i) {
+		//	addendum = digits[i] * digit + carry;
+		//	carry = addendum / base;
+		//	digits[i] = addendum % base;
+		//}
+		//return bint;
+
+		//if (N == 0) {
+		//	return;
+		//}
+		//int size = digits.size;
+		//for (int i = 0; i < size; ++i) {
+		//	digits[size - 1 + N - i] = (const_cast<const vector_wrapper&>(digits))[size - 1 - i];
+		//}
+		//for (int i = 0; i < N; ++i) {
+		//	digits[i] = 0;
+		//}
+		/*if (digit == 0) {
+			if (N == 0) {
+				nullify();
+				return;
+			}
+			else {
+				return;
+			}
+		}*/
 	}
 	/*void multiply_by_digit_with_shift_by(int digit, int N) {
 		multiply_by_digit(digit);
@@ -986,9 +1019,9 @@ public:
 	#ifndef VS_10
 	explicit
 	#endif 
-	operator bool() const {
+	/*operator bool() const {
 		return !zero;
-	}
+	}*/
 
 	friend std::istream& operator>>(std::istream& stream, BigInteger& bint) {
 		std::string str;
@@ -1104,6 +1137,11 @@ class Rational {
 private:
 	BigInteger numerator;
 	BigInteger denominator;
+	void reduce() {
+		BigInteger gcd = GCD(numerator, denominator);
+		numerator /= gcd;
+		denominator /= gcd;
+	}
 public:
 	Rational(int r = 0) {
 		numerator = r;
@@ -1117,8 +1155,17 @@ public:
 		numerator = rat.numerator;
 		denominator = rat.denominator;
 	}
+	Rational(int p, int q) {
+		std::cerr << "Why the heck is this thing called!?\n";
+	}
+	Rational(const BigInteger& p, const BigInteger& q) {
+		std::cerr << "Why the heck is this thing called!?\n";	
+	}
 
 	Rational operator=(const Rational& rat) {
+		if (this == &rat) {
+			return *this;
+		}
 		numerator = rat.numerator;
 		denominator = rat.denominator;
 		return *this;
@@ -1161,9 +1208,7 @@ public:
 		}
 		(numerator *= rat.denominator) += (rat.numerator * denominator);
 		denominator *= rat.denominator;
-		BigInteger gcd = GCD(numerator, denominator);
-		numerator /= gcd;
-		denominator /= gcd;
+		reduce();
 		return *this;
 	}
 
@@ -1173,19 +1218,18 @@ public:
 		}
 		(numerator *= rat.denominator) -= (rat.numerator * denominator);
 		denominator *= rat.denominator;
-		BigInteger gcd = GCD(numerator, denominator);
-		numerator /= gcd;
-		denominator /= gcd;
+		reduce();
 		return *this;
 	}
 
 	Rational& operator*=(const Rational& rat) {
 		//first variant
+		if (numerator.zero) {
+			return *this;
+		}
 		numerator *= rat.numerator;
 		denominator *= rat.denominator;
-		BigInteger gcd = GCD(numerator, denominator);
-		numerator /= gcd;
-		denominator /= gcd;
+		reduce();
 		//second variant incoming
 		return *this;
 	}
@@ -1204,9 +1248,7 @@ public:
 			numerator.negative = true;
 			denominator.negative = false;
 		}
-		BigInteger gcd = GCD(numerator, denominator);
-		numerator /= gcd;
-		denominator /= gcd;
+		reduce();
 		return *this;
 	}
 
@@ -1230,13 +1272,60 @@ public:
 		return str;
 	}
 	std::string asDecimal(size_t precision = 0) const {
-		return std::to_string(precision);
+		//quite uneffective yet working
+		if (numerator.zero) {
+			return "0." + std::string(precision, '0');
+		}
+		if (denominator == 1) {
+			return numerator.toString() + "." + std::string(precision, '0');
+		}
+		BigInteger num(numerator);
+		BigInteger den(denominator);
+		std::string str;
+		(str += (num / den).toString()) += ".";
+		num.negative = false;
+		num %= den;
+		if (precision) {
+			unsigned int base_digits_count = 0;
+			long long int base = num.base;
+			while (base) {
+				++base_digits_count;
+				base /= 10;
+			}
+			num.multiply_by_base_power(precision / (base_digits_count - 1) + ((precision % (base_digits_count - 1)) ? 1 : 0));
+			num /= den;
+			str += (num.toString()).substr(0, precision);
+		}
+		return str;
 	}
 	#ifndef VS_10
 	explicit 
 	#endif
-	operator double() const {
-		return 0;
+	//operator double() const {
+	//	return 0;
+	//}
+	friend std::istream& operator>>(std::istream& stream, Rational& rat) {
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Wtype-limits"
+		std::string str;
+		stream >> str;
+		unsigned int index = str.find('/');
+		if (index == str.npos) {
+			std::stringstream s;
+			s << str;
+			s >> rat.numerator;
+			rat.denominator = 1;
+		}
+		else {
+			std::stringstream s1;
+			s1 << str.substr(0, index);
+			s1 >> rat.numerator;
+			std::stringstream s2;
+			s2 << str.substr(index + 1, str.length());
+			s2 >> rat.denominator;
+			rat.reduce();
+		}
+		return stream;
 	}
 };
 
@@ -1259,4 +1348,8 @@ Rational operator/(const Rational& rat1, const Rational& rat2) {
 	Rational temp(rat1);
 	temp /= rat2;
 	return temp;
+}
+
+std::ostream& operator<<(std::ostream& stream, const Rational& rat) {
+	return stream << rat.toString();
 }
