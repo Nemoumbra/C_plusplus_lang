@@ -372,13 +372,21 @@ namespace Geometry {
 			double y = (line.c * a - c * line.a) / den;
 			return Point2D(x, y);
 		}
-		Point2D intersection(const Segment2D& segment) const {
-			if (are_points_collinear(point, segment.start, segment.end)) {
-				throw std::invalid_argument("Intersection is a segment");
-			}
+
+		bool do_intersect(const Segment2D& segment) const {
 			if (vector.are_collinear(segment.vector)) {
+				return are_points_collinear(point, segment.start, segment.end);
+			}
+			return segment.does_lie_on(intersection(Line2D(segment)));
+		}
+		Point2D intersection(const Segment2D& segment) const {
+			if (vector.are_collinear(segment.vector)) {
+				if (are_points_collinear(point, segment.start, segment.end)) {
+					throw std::invalid_argument("Intersection is a segment");
+				}
 				throw std::invalid_argument("Line is parallel to segment");
 			}
+			
 			Point2D intersect = intersection(Line2D(segment));
 			if (!segment.does_lie_on(intersect)) {
 				throw std::invalid_argument("Line and segment don't intersect");
@@ -394,6 +402,12 @@ namespace Geometry {
 				throw std::invalid_argument("Distance is undefined");
 			}
 			return line.distance(point);
+		}
+		double distance(const Segment2D& segment) const {
+			if (do_intersect(segment)) {
+				throw std::invalid_argument("Line and segment intersect - distance is undefined");
+			}
+			return std::min(distance(segment.start), distance(segment.end));
 		}
 		Vector2D normal_vector() const {
 			return Vector2D(a, b);
@@ -430,26 +444,101 @@ namespace Geometry {
 		}
 
 		bool operator==(const Ray2D& ray) const {
-
+			return start == ray.start && vector.are_co_directional(ray.vector);
 		}
 		bool are_collinear(const Ray2D& ray) const {
-
+			return vector.are_collinear(ray.vector);
 		}
 		bool are_perpendicular(const Ray2D& ray) const {
-
+			return vector.are_orthogonal(ray.vector);
 		}
 
 		double angle(const Ray2D& ray) const {
+			return vector.angle(ray.vector);
+		}
+		double oriented_angle(const Ray2D& ray) const {
+			return vector.oriented_angle(ray.vector);
+		}
 
+		bool does_lie_on(const Point2D& point) const {
+			return vector.are_co_directional(Vector2D(start, point));
 		}
 
 		double distance(const Point2D& point) const {
-
+			Vector2D start_to_point(start, point);
+			if (vector.dot(start_to_point) < 0) {
+				return start_to_point.length();
+			}
+			return std::abs(a * point.x + b * point.y + c) / std::sqrt(a * a + b * b);
 		}
 		double distance(const Ray2D& ray) const {
+			if (vector.are_co_directional(ray.vector)) {
+				if (vector.are_collinear(Vector2D(start, ray.start))) {
+					throw std::invalid_argument("Rays intersect: distance is undefined");
+				}
+				return std::abs(a * ray.start.x + b * ray.start.y + c) / std::sqrt(a * a + b * b);
+			}
+			if (vector.are_collinear(ray.vector)) { // anti_directional
+				Vector2D start_to_start(start, ray.start);
+				if (vector.dot(start_to_start) < 0) {
+					return start_to_start.length();
+				}
+				if (does_lie_on(ray.start)) {
+					throw std::invalid_argument("Rays intersect : distance is undefined");
+				}
+				return std::abs(a * ray.start.x + b * ray.start.y + c) / std::sqrt(a * a + b * b);
+			}
+			Point2D intersect = Line2D(start, vector).intersection(Line2D(ray.start, ray.vector));
+			if (does_lie_on(intersect) && ray.does_lie_on(intersect)) {
+				throw std::invalid_argument("Rays intersect: distance is undefined");
+			}
+
+			Vector2D start_to_start(start, ray.start);
+			if (vector.dot(start_to_start) < 0) {
+				if (ray.vector.dot(-start_to_start) < 0) {
+					return start_to_start.length();
+				}
+				return std::abs(a * ray.start.x + b * ray.start.y + c) / std::sqrt(a * a + b * b);
+			}
+			if (ray.vector.dot(-start_to_start) < 0) {
+				return std::abs(ray.a * start.x + ray.b * start.y + ray.c) / std::sqrt(ray.a * ray.a + ray.b * ray.b);
+			}
+			return std::min(std::abs(ray.a * start.x + ray.b * start.y + ray.c) / std::sqrt(ray.a * ray.a + ray.b * ray.b),
+				std::abs(a * ray.start.x + b * ray.start.y + c) / std::sqrt(a * a + b * b));
 
 		}
 		double distance(const Segment2D& segment) const {
+			if (vector.are_co_directional(segment.vector)) {
+				Vector2D end_to_start(segment.end, start);
+				if (segment.vector.dot(end_to_start) > 0) {
+					return end_to_start.length();
+				}
+				return std::abs(a * segment.start.x + b * segment.start.y + c) / std::sqrt(a * a + b * b);
+			}
+			if (vector.are_collinear(segment.vector)) { // anti-directional
+				Vector2D start_to_start(segment.start, start);
+				if (segment.vector.dot(start_to_start) < 0) {
+					return start_to_start.length();
+				}
+				return std::abs(a * segment.start.x + b * segment.start.y + c) / std::sqrt(a * a + b * b);
+			}
+
+		}
+		bool do_intersect(const Ray2D& ray) const {
+			if (vector.are_co_directional(ray.vector)) {
+				return vector.are_collinear(Vector2D(start, ray.start));
+			}
+			if (vector.are_collinear(ray.vector)) { // anti_directional
+				if (!vector.are_collinear(Vector2D(start, ray.start))) {
+					return false;
+				}
+				return does_lie_on(ray.start);
+			}
+
+			Point2D intersect = Line2D(start, vector).intersection(Line2D(ray.start, ray.vector));
+			return does_lie_on(intersect) && ray.does_lie_on(intersect);
+		}
+		bool do_intersect(const Segment2D& segment) const {
 
 		}
 
@@ -468,27 +557,125 @@ namespace Geometry {
 		Segment2D segment_intersection(const Segment2D& segment) const {
 
 		}
-
-		bool does_lie_on(const Point2D& point) const {
-
-		}
 	};
 
 	class Shape {
-		virtual double perimeter() = 0;
-		virtual double area() = 0;
-		virtual bool operator==(const Shape& shape) = 0;
-		virtual bool isCongruentTo(const Shape& shape) = 0;
-		virtual bool isSimilarTo(const Shape& shape) = 0;
-		virtual bool containsPoint(const Shape& shape) = 0;
-		virtual void rotate(const Point2D& point, double angle) = 0;
-		virtual void reflect(const Point2D& point) = 0;
-		virtual void reflect(const Line2D& line) = 0;
-		virtual void scale(const Point2D& point, double coefficient) = 0;
+		virtual double perimeter() const = 0;
+		virtual double area() const = 0;
+		virtual bool operator==(const Shape& shape) const = 0;
+		virtual bool isCongruentTo(const Shape& shape) const = 0;
+		virtual bool isSimilarTo(const Shape& shape) const = 0;
+		virtual bool containsPoint(const Shape& shape) const = 0;
+		virtual void rotate(const Point2D& point, double angle) const = 0;
+		virtual void reflect(const Point2D& point) const = 0;
+		virtual void reflect(const Line2D& line) const = 0;
+		virtual void scale(const Point2D& point, double coefficient) const = 0;
 	};
 
 	class Polygon : public Shape {
+	private:
+		std::vector <Point2D> vertices;
 
+		Polygon(const Point2D& point1, const Point2D& point2, const Point2D& point3, std::initializer_list <Point2D> points_list) {
+			vertices.push_back(point1);
+			vertices.push_back(point2);
+			vertices.insert(vertices.end(), points_list);
+		}
+		/*template <typename... Points>
+		Polygon(Points... points) {
+
+		}*/
+	public:
+		Polygon(const std::vector <Point2D>& vertices) : vertices(vertices) {};
+		//Polygon(std::initializer_list <Point2D> point_list) : vertices(point_list) {};
+
+		template <typename... Points>
+		Polygon(const Point2D& point1, const Point2D& point2, const Point2D& point3, Points... points) {
+
+		}
+		Polygon(std::initializer_list <Point2D> points_list) {
+			vertices = points_list;
+		}
+
+		std::vector <Point2D> getVertices() const {
+			return vertices;
+		}
+
+		int verticesCount() const {
+			return vertices.size();
+		}
+
+		bool isConvex() const {
+			if (vertices.size() == 3) {
+				return true;
+			}
+			Vector2D first(vertices[0], vertices[1]);
+			Vector2D second(vertices[1], vertices[2]);
+			bool right = (first.cross(second)) > 0;
+			first = second;
+			for (int i = 3; i < vertices.size(); i++) {
+				second = Vector2D(vertices[i - 1], vertices[i]);
+				if (right != (first.cross(second) > 0)) {
+					return false;
+				}
+				first = second;
+			}
+			second = Vector2D(vertices[vertices.size() - 1], vertices[0]);
+			if (right != (first.cross(second) > 0)) {
+				return false;
+			}
+			first = second;
+
+			second = Vector2D(vertices[0], vertices[1]);
+			if (right != (first.cross(second) > 0)) {
+				return false;
+			}
+			return true;
+		}
+
+		virtual double perimeter() const override {
+			double res = vertices[vertices.size() - 1].distance(vertices[0]);
+			for (int i = 1; i < vertices.size(); i++) {
+				res += vertices[i - 1].distance(vertices[i]);
+			}
+			return res;
+		}
+
+		virtual double area() const override {
+			return 0;
+		}
+
+		virtual bool operator==(const Shape& shape) const override {
+			return 0;
+		}
+
+		virtual bool containsPoint(const Shape& shape) const override {
+			return 0;
+		}
+
+		virtual bool isCongruentTo(const Shape& shape) const override {
+			return 0;
+		}
+
+		virtual bool isSimilarTo(const Shape& shape) const override {
+			return 0;
+		}
+
+		virtual void rotate(const Point2D& point, double angle) const override {
+
+		}
+
+		virtual void reflect(const Point2D& point) const override {
+
+		}
+
+		virtual void reflect(const Line2D& line) const override {
+
+		}
+
+		virtual void scale(const Point2D& point, double coefficient) const override {
+
+		}
 	};
 
 	class Rectangle : public Polygon {
