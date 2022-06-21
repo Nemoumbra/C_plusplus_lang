@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <iostream>
 #include <fstream>
+#include "Borders.h"
 
 namespace fsystem = std::filesystem;
 
@@ -14,6 +15,7 @@ class Engine {
 public:
 	std::vector <Circle> object_storage;
 	std::vector <Trajectory> trajectory_storage;
+	Borders borders;
 
 	//std::vector <sf::Text> UI_texts;
 	sf::Text uniform_gravity_text;
@@ -29,6 +31,8 @@ public:
 
 
 	void prepare_UI(const sf::Font& font);
+
+	void prepare_borders(/*Vector2D left_up, Vector2D right_bottom, double thinkness, const sf::Color& color*/);
 
 	void draw_user_interface(sf::RenderWindow& window);
 
@@ -47,6 +51,7 @@ public:
 	void update_positions(double dt);
 
 	bool resolve_collision(Circle& circle_1, Circle& circle_2);
+	bool resolve_collision(Circle& circle, const Borders& borders);
 	bool resolve_collisions();
 
 	void update(sf::RenderWindow& window);
@@ -59,4 +64,3 @@ public:
 	Engine() = default;
 
 };
-
