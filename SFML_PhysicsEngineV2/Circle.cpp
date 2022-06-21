@@ -17,13 +17,13 @@ Circle::Circle(double x, double y, double r, const sf::Color& color) :
 	projectile(false),
 	shape(sf::CircleShape(r)) 
 {
-	shape.setFillColor(sf::Color(color.r, color.g, color.b, opaque ? 0 : opacity));
+	shape.setFillColor(sf::Color(color.r, color.g, color.b, opaque ? 255 : opacity));
 	shape.setOutlineThickness(1);
 	if (Settings::circles_stroke) {
-		shape.setOutlineColor(sf::Color(200, 0, 0, opaque ? 0 : opacity));
+		shape.setOutlineColor(sf::Color(200, 0, 0, opaque ? 255 : opacity));
 	}
 	else {
-		shape.setOutlineColor(sf::Color(color.r, color.g, color.b, opaque ? 0 : opacity));
+		shape.setOutlineColor(sf::Color(color.r, color.g, color.b, opaque ? 255 : opacity));
 	}
 	shape.setPosition(x, y);
 
@@ -44,13 +44,13 @@ Circle::Circle(const Vector2D& pos, double r, const sf::Color& color) :
 	projectile(false),
 	shape(sf::CircleShape(r)) 
 {
-	shape.setFillColor(sf::Color(color.r, color.g, color.b, opaque ? 0 : opacity));
+	shape.setFillColor(sf::Color(color.r, color.g, color.b, opaque ? 255 : opacity));
 	shape.setOutlineThickness(1);
 	if (Settings::circles_stroke) {
-		shape.setOutlineColor(sf::Color(200, 0, 0, opaque ? 0 : opacity));
+		shape.setOutlineColor(sf::Color(200, 0, 0, opaque ? 255 : opacity));
 	}
 	else {
-		shape.setOutlineColor(sf::Color(color.r, color.g, color.b, opaque ? 0 : opacity));
+		shape.setOutlineColor(sf::Color(color.r, color.g, color.b, opaque ? 255 : opacity));
 	}
 	shape.setPosition(pos.x, pos.y);
 }
@@ -58,8 +58,9 @@ Circle::Circle(const Vector2D& pos, double r, const sf::Color& color) :
 void Circle::draw(sf::RenderWindow& window) {
 	shape.setPosition(pos.x, pos.y);
 	window.draw(shape);
-	std::cout << "Circle::draw is called!\n";
-	std::cout << "pos = {" << pos.x << "; " << pos.y << "}\n";
+	
+	//std::cout << "Circle::draw is called!\n";
+	//std::cout << "pos = {" << pos.x << "; " << pos.y << "}\n";
 }
 
 void Circle::move(double dt) {
