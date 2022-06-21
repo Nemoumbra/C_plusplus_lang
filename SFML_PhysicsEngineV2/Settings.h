@@ -44,4 +44,3 @@ public:
 
 	static void use_default_settings();
 };
-
