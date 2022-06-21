@@ -9,7 +9,7 @@ void Engine::log(const std::string& text) {
 }
 
 void Engine::add_circle(const Circle& circle, sf::RenderWindow& window) {
-	std::cout << "Engine::add_circle called\n";
+	log("Engine::add_circle called");
 	object_storage.push_back(circle);
 	object_storage.back().draw(window);
 }
@@ -48,6 +48,10 @@ void Engine::prepare_UI(const sf::Font& font) {
 	frame_by_frame_debug_text.setPosition(305, 45);
 }
 
+void Engine::prepare_borders() {
+	borders.initialize(20, 20, 880, 880, 5);
+}
+
 void Engine::draw_user_interface(sf::RenderWindow& window) {
 	//for (const sf::Text& text : UI_texts) {
 	//	window.draw(text);
@@ -67,11 +71,19 @@ void Engine::draw_user_interface(sf::RenderWindow& window) {
 }
 
 void Engine::draw_trajectories(sf::RenderWindow& window, bool draw_if_stopped) {
-	if ((Settings::time_stopped || Settings::frame_by_frame_lock) && !draw_if_stopped) {
-		return;
+	if (Settings::time_stopped || Settings::frame_by_frame_lock) {
+		if (!draw_if_stopped) {
+			return;
+		}
+		for (Trajectory& trajectory : trajectory_storage) {
+			trajectory.draw(window);
+		}
 	}
-	for (Trajectory& trajectory : trajectory_storage) {
-		trajectory.draw(window);
+	else {
+		for (Trajectory& trajectory : trajectory_storage) {
+			trajectory.save_new();
+			trajectory.draw(window);
+		}
 	}
 }
 
@@ -150,7 +162,7 @@ void Engine::apply_forces() {
 
 void Engine::update_positions(double dt) {
 	for (Circle& circle : object_storage) {
-		log("circle.move(dt) called in engine.cpp");
+		//log("circle.move(dt) called in engine.cpp");
 		circle.move(dt);
 	}
 }
@@ -171,13 +183,46 @@ bool Engine::resolve_collision(Circle& circle_1, Circle& circle_2) {
 	return true;
 }
 
+bool Engine::resolve_collision(Circle& circle, const Borders& borders) {
+	if (borders.left_up.x + borders.thickness >= circle.pos.x) {
+		log("Left border hit");
+		circle.velocity.x *= -1;
+		return true;
+	}
+	
+	if (borders.left_up.y + borders.thickness >= circle.pos.y) {
+		log("Up border hit");
+		circle.velocity.y *= -1;
+		return true;
+	}
+
+	if (borders.right_bottom.x - borders.thickness <= circle.pos.x + 2 * circle.r) {
+		log("Right border hit");
+		circle.velocity.x *= -1;
+		return true;
+	}
+
+	if (borders.right_bottom.y - borders.thickness <= circle.pos.y + 2 * circle.r) {
+		log("Bottom border hit");
+		circle.velocity.y *= -1;
+		return true;
+	}
+	return false;
+}
+
 bool Engine::resolve_collisions() {
 	bool res = false;
 	for (int i = 0; i < object_storage.size(); ++i) {
 		for (int j = i + 1; j < object_storage.size(); ++j) {
-			res = res || resolve_collision(object_storage[i], object_storage[j]);
+			res = resolve_collision(object_storage[i], object_storage[j]) || res;
 		}
 	}
+	if (Settings::borders_on) {
+		for (int i = 0; i < object_storage.size(); ++i) {
+			res = resolve_collision(object_storage[i], borders) || res;
+		}
+	}
+
 	return res;
 }
 
@@ -189,26 +234,34 @@ void Engine::update(sf::RenderWindow& window) {
 	apply_forces();
 
 	double dt = 1.0 / Settings::loops_per_frame;
-	bool next_frame = false;
+	///bool next_frame = false;
 
-	for (int i = 0; i < Settings::loops_per_frame; ++i) {
-		//log(std::to_string(i));
-		if (next_frame) break;
-		log("update_positions(dt) called in engine.cpp");
-		update_positions(dt);
+	if (!(Settings::time_stopped || Settings::frame_by_frame_lock)) {
+		for (int i = 0; i < Settings::loops_per_frame; ++i) {
+			//log(std::to_string(i));
 
-		//log("resolve_collisions() called in engine.cpp");
-		next_frame = resolve_collisions();
+			///if (next_frame) break;
+
+			//log("update_positions(dt) called in engine.cpp");
+			update_positions(dt);
+
+			//log("resolve_collisions() called in engine.cpp");
+			///next_frame = resolve_collisions();
+			resolve_collisions();
+		}
 	}
 	if (Settings::frame_by_frame_debug_on && !Settings::frame_by_frame_lock) {
 		Settings::frame_by_frame_lock = true;
 	}
 	// draw borders
+	if (Settings::borders_on) {
+		borders.draw(window);
+	}
 
 	//log("draw_trajectories(window, true) called in engine.cpp");
 	draw_trajectories(window, true);
 
-	log("draw_circles(window) called in engine.cpp");
+	//log("draw_circles(window) called in engine.cpp");
 	draw_circles(window);
 }
 
