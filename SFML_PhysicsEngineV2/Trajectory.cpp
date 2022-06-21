@@ -24,7 +24,7 @@ void Trajectory::add(const Vector2D& pos) {
 void Trajectory::save_new() {
 	(++counter) %= frequency;
 	if (!counter) {
-		add(child.pos);
+		add(child.pos); // this is how it works with Java
 	}
 }
 
