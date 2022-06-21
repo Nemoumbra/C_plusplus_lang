@@ -2,7 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include "Functions.h"
 
- double PI() {
+double PI() {
 	return std::atan(1) * 4;
 }
 
