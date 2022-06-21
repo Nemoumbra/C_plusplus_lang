@@ -37,19 +37,19 @@ std::string Settings::recording_extension;
 int Settings::next_recording_id;
 
 void Settings::use_default_settings() {
-	Settings::borders_on = false;
+	Settings::borders_on = true;
 	Settings::circles_stroke = false;
 	Settings::clicking_allowed = true;
 	Settings::epsilon = 1;
 	Settings::frame_by_frame_debug_on = false;
 	Settings::frame_by_frame_lock = false;
 	Settings::G = 10;
-	Settings::gravity_on = true;
-	Settings::g = Vector3D(0, 0.5, 0);
+	Settings::gravity_on = false;
+	Settings::g = Vector3D(0, 0.05, 0);
 	Settings::gravity_on = false;
 	Settings::is_recording = false;
-	Settings::logging_on = true;
-	Settings::loops_per_frame = 1;
+	Settings::logging_on = false;
+	Settings::loops_per_frame = 8;
 	Settings::mu = 0;
 	Settings::newtonian_drag_on = false;
 	Settings::newtonian_k = 0;
@@ -58,6 +58,6 @@ void Settings::use_default_settings() {
 	Settings::recording_path = "";
 	Settings::stokes_drag_on = false;
 	Settings::time_stopped = true;
-	Settings::uniform_gravity = false;
-	Settings::viscosity = 0;
+	Settings::uniform_gravity = true;
+	Settings::viscosity = 0.0002;
 }
